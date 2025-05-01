@@ -11,10 +11,12 @@ import { ToastProvider } from './contexts/ToastContext';
 import PrivateRoute from './components/PrivateRoute';
 
 const App = () => {
+
+  // from dev branch
   return (
     <Router>
       <AuthProvider>
-        <ToastProvider>
+        <ToastProvider> 
           <Routes>
             <Route path='/' element={<LogIn />} />
             <Route path='/signup' element={<SignUp />} />
