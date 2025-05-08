@@ -27,11 +27,6 @@ export const progressService = {
     return response;
   },
 
-  async getPatientSummary(patientId) {
-    const response = await api.get(`/progress/patient/${patientId}/summary/`);
-    return response;
-  },
-
   async getLastSessionData(patientId) {
     const response = await api.get(`/progress/patient/${patientId}/last-session/`);
     return response;
