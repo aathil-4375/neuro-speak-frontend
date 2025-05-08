@@ -1,4 +1,4 @@
-// frontend/src/pages/PatientUser.jsx
+// frontend/src/pages/PatientUser.jsx - Final Fixed Version
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import NavBar from '../components/NavBar';
@@ -12,9 +12,159 @@ import {
   Star,
   X,
   FileText,
-  Download
+  Download,
+  BarChart2,
+  ChevronLeft,
+  Award,
+  Activity,
+  TrendingUp,
+  ArrowRight,
+  MoreHorizontal,
+  Calendar,
+  Bell
 } from 'lucide-react';
 import api from '../services/api';
+import { useToast } from '../contexts/ToastContext';
+
+const ProgressCard = ({ title, value, total, color, icon }) => {
+  const percentage = Math.round((value / total) * 100) || 0;
+  
+  return (
+    <div className="bg-white rounded-xl shadow-md p-5">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center">
+          <div className={`w-10 h-10 ${color} rounded-lg flex items-center justify-center`}>
+            {icon}
+          </div>
+          <h3 className="ml-3 font-semibold text-gray-700">{title}</h3>
+        </div>
+        <span className="text-lg font-bold">{percentage}%</span>
+      </div>
+      <div className="w-full bg-gray-200 rounded-full h-2.5">
+        <div 
+          className={`h-2.5 rounded-full ${color.replace('bg-', 'bg-')}`} 
+          style={{ width: `${percentage}%` }}
+        ></div>
+      </div>
+      <div className="flex justify-between mt-2 text-sm text-gray-500">
+        <span>{value} completed</span>
+        <span>{total} total</span>
+      </div>
+    </div>
+  );
+};
+
+const PhonemeCard = ({ phoneme, onClick, isActive }) => {
+  const { id, status, progress, accuracy, lastPracticed } = phoneme;
+  
+  const getStatusColorClasses = () => {
+    switch (status) {
+      case 'completed':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'in-progress':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+  
+  const getProgressBarColor = () => {
+    switch (status) {
+      case 'completed':
+        return 'bg-green-500';
+      case 'in-progress':
+        return 'bg-blue-500';
+      default:
+        return 'bg-gray-300';
+    }
+  };
+  
+  return (
+    <div 
+      onClick={onClick}
+      className={`p-4 rounded-xl border transition-all hover:shadow-md cursor-pointer ${
+        isActive 
+          ? 'border-custom-blue bg-blue-50' 
+          : `border-gray-200 ${status === 'completed' ? 'bg-green-50' : status === 'in-progress' ? 'bg-blue-50' : 'bg-white'}`
+      }`}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center">
+          <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+            status === 'completed' ? 'bg-green-200' :
+            status === 'in-progress' ? 'bg-blue-200' :
+            'bg-gray-200'
+          }`}>
+            <span className="text-xl font-bold text-gray-900">{phoneme.phoneme}</span>
+          </div>
+          <div className="ml-3">
+            <h3 className="font-medium text-gray-900">Chapter {id}</h3>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {phoneme.exampleWords.map((word, idx) => (
+                <span key={idx} className="px-2 py-0.5 bg-white rounded text-xs text-gray-600 border border-gray-200">
+                  {word}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="flex flex-col items-end">
+          <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColorClasses()}`}>
+            {status.replace('-', ' ')}
+          </span>
+          <p className="text-lg font-semibold mt-1">{accuracy}%</p>
+        </div>
+      </div>
+      
+      <div className="mt-3">
+        <div className="w-full bg-gray-200 rounded-full h-1.5">
+          <div 
+            className={`h-1.5 rounded-full ${getProgressBarColor()}`}
+            style={{ width: `${progress}%` }}
+          ></div>
+        </div>
+        <div className="flex justify-between mt-1">
+          <p className="text-xs text-gray-500">{progress}% complete</p>
+          {lastPracticed && (
+            <p className="text-xs text-gray-500 flex items-center">
+              <Clock className="w-3 h-3 mr-1" />
+              {lastPracticed}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const SessionCard = ({ session }) => {
+  return (
+    <div className="bg-white rounded-xl shadow-sm p-4 hover:shadow-md transition-shadow">
+      <div className="flex justify-between">
+        <div className="flex items-center">
+          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+            <CalendarIcon className="w-5 h-5 text-blue-600" />
+          </div>
+          <div className="ml-3">
+            <h3 className="font-medium text-gray-900">{session.date}</h3>
+            <p className="text-sm text-gray-500">{session.duration}</p>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="font-semibold text-gray-900">{session.accuracy}%</p>
+          <p className="text-sm text-gray-500">{session.wordsAttempted} words</p>
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {session.phonemesPracticed.map((phoneme, idx) => (
+          <span key={idx} className="px-2 py-1 bg-blue-100 text-blue-800 rounded-md text-xs font-medium">
+            {phoneme}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const PatientUser = () => {
   const [showGraph, setShowGraph] = useState(false);
@@ -23,9 +173,12 @@ const PatientUser = () => {
   const [patientData, setPatientData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [selectedPhoneme, setSelectedPhoneme] = useState(null);
   
   const location = useLocation();
   const navigate = useNavigate();
+  const { showSuccess, showError } = useToast();
   const patient = location.state?.patient;
 
   // Fetch patient data from backend
@@ -74,7 +227,7 @@ const PatientUser = () => {
     // Create a new window for the printable report
     const printWindow = window.open('', '_blank');
     
-    // Generate HTML content for the report
+    // Generate HTML content for the report (using existing code)
     const reportHTML = `
       <!DOCTYPE html>
       <html>
@@ -305,7 +458,7 @@ const PatientUser = () => {
       printWindow.print();
     };
   };
-
+  
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -337,257 +490,432 @@ const PatientUser = () => {
       <NavBar />
       
       <div className="container mx-auto px-4 py-8 max-w-7xl">
-        {/* Patient Header */}
-        <div className="bg-white rounded-2xl shadow-sm p-6 mb-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-6">
-              <div className="w-20 h-20 bg-custom-blue rounded-full flex items-center justify-center">
+        {/* Hero Section */}
+        <div className="bg-gradient-to-r from-custom-blue to-indigo-600 rounded-2xl shadow-lg p-8 mb-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="flex items-center">
+              <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center">
                 <User className="w-10 h-10 text-white" />
               </div>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">{patientData.patient.full_name}</h1>
+              <div className="ml-6">
+                <h1 className="text-3xl font-bold text-white">{patientData.patient.full_name}</h1>
                 <div className="flex items-center space-x-4 mt-2">
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-white/20 text-white">
                     ID: {patientData.patient.patient_id}
+                  </span>
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-white/20 text-white">
+                    {patientData.patient.gender}
                   </span>
                 </div>
               </div>
             </div>
-            <button 
-              onClick={handleGenerateReport}
-              disabled={isGenerating}
-              className={`px-6 py-3 bg-custom-blue text-white rounded-lg font-medium transition flex items-center space-x-2 ${
-                isGenerating ? 'opacity-75 cursor-not-allowed' : 'hover:bg-blue-700'
-              }`}
-            >
-              <FileText className={`w-5 h-5 ${isGenerating ? 'animate-pulse' : ''}`} />
-              <span>{isGenerating ? 'Generating...' : 'Generate Progress Report'}</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Main Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Phoneme Progress */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Phoneme Progress */}
-            <div className="bg-white rounded-2xl shadow-sm p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">Phoneme Progress</h2>
-                <span className="text-sm font-medium text-gray-500">
-                  {patientData.phonemeProgress.filter(p => p.status === 'completed').length} of {patientData.phonemeProgress.length} mastered
-                </span>
-              </div>
-              
-              <div className="space-y-4">
-                {patientData.phonemeProgress.map(phoneme => (
-                  <div 
-                    key={phoneme.id} 
-                    onClick={() => handlePhonemeClick(phoneme.id)}
-                    className={`p-4 rounded-xl border cursor-pointer transition-all hover:shadow-md ${
-                      phoneme.status === 'completed' ? 'border-green-200 bg-green-50 hover:bg-green-100' :
-                      phoneme.status === 'in-progress' ? 'border-blue-200 bg-blue-50 hover:bg-blue-100' :
-                      'border-gray-200 bg-white hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className={`w-14 h-14 rounded-lg flex items-center justify-center ${
-                          phoneme.status === 'completed' ? 'bg-green-200' :
-                          phoneme.status === 'in-progress' ? 'bg-blue-200' :
-                          'bg-gray-200'
-                        }`}>
-                          <span className="text-2xl font-bold text-gray-900">{phoneme.phoneme}</span>
-                        </div>
-                        <div>
-                          <h3 className="font-medium text-gray-900">Phoneme Chapter {phoneme.id}</h3>
-                          <div className="flex flex-wrap gap-2 mt-1">
-                            {phoneme.exampleWords.map((word, index) => (
-                              <span key={index} className="px-2 py-1 bg-white rounded-md text-sm text-gray-600 border border-gray-200">
-                                {word}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-6">
-                        <div className="text-right">
-                          <p className="text-sm text-gray-500">Accuracy</p>
-                          <p className="text-lg font-semibold text-gray-900">{phoneme.accuracy}%</p>
-                        </div>
-                        <div className="w-32">
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div 
-                              className={`h-2 rounded-full ${
-                                phoneme.status === 'completed' ? 'bg-green-500' :
-                                phoneme.status === 'in-progress' ? 'bg-blue-500' :
-                                'bg-gray-300'
-                              }`}
-                              style={{ width: `${phoneme.progress}%` }}
-                            ></div>
-                          </div>
-                          <p className="text-xs text-gray-500 mt-1 text-right">{phoneme.progress}% complete</p>
-                        </div>
-                      </div>
-                    </div>
-                    {phoneme.lastPracticed && (
-                      <div className="mt-2 text-sm text-gray-500 flex items-center">
-                        <Clock className="w-4 h-4 mr-1" />
-                        Last practiced: {phoneme.lastPracticed}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Practice Sessions */}
-            <div className="bg-white rounded-2xl shadow-sm p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6">Recent Practice Sessions</h2>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="text-left border-b border-gray-200">
-                      <th className="pb-3 text-sm font-medium text-gray-500">Date</th>
-                      <th className="pb-3 text-sm font-medium text-gray-500">Duration</th>
-                      <th className="pb-3 text-sm font-medium text-gray-500">Phonemes Practiced</th>
-                      <th className="pb-3 text-sm font-medium text-gray-500">Words Attempted</th>
-                      <th className="pb-3 text-sm font-medium text-gray-500">Accuracy</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {patientData.recentSessions.map((session, index) => (
-                      <tr key={index}>
-                        <td className="py-4">
-                          <div className="flex items-center">
-                            <CalendarIcon className="w-4 h-4 text-gray-400 mr-2" />
-                            <span className="text-gray-900">{session.date}</span>
-                          </div>
-                        </td>
-                        <td className="py-4">
-                          <div className="flex items-center">
-                            <Clock className="w-4 h-4 text-gray-400 mr-2" />
-                            <span className="text-gray-900">{session.duration}</span>
-                          </div>
-                        </td>
-                        <td className="py-4">
-                          <div className="flex gap-2">
-                            {session.phonemesPracticed.map((phoneme, idx) => (
-                              <span key={idx} className="px-2 py-1 bg-blue-100 text-blue-800 rounded-md text-sm font-medium">
-                                {phoneme}
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-                        <td className="py-4">
-                          <span className="text-gray-900">{session.wordsAttempted} words</span>
-                        </td>
-                        <td className="py-4">
-                          <div className="flex items-center">
-                            <div className="w-20 bg-gray-200 rounded-full h-2 mr-2">
-                              <div 
-                                className="bg-custom-blue h-2 rounded-full"
-                                style={{ width: `${session.accuracy}%` }}
-                              ></div>
-                            </div>
-                            <span className="text-gray-900 font-medium">{session.accuracy}%</span>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column - Stats & Info */}
-          <div className="space-y-8">
-            {/* Patient Info */}
-            <div className="bg-white rounded-2xl shadow-sm p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6">Patient Information</h2>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                  <span className="text-gray-600">Gender</span>
-                  <span className="font-medium text-gray-900">{patientData.patient.gender}</span>
-                </div>
-                <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                  <span className="text-gray-600">First Visit</span>
-                  <span className="font-medium text-gray-900">{patientData.patient.first_clinic_date}</span>
-                </div>
-                <div className="flex justify-between items-center py-2">
-                  <span className="text-gray-600">Total Sessions</span>
-                  <span className="font-medium text-gray-900">{patientData.statistics.total_sessions}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Phoneme Mastery Stats */}
-            <div className="bg-white rounded-2xl shadow-sm p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6">Phoneme Mastery</h2>
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                      <CheckCircle className="w-5 h-5 text-green-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Mastered</p>
-                      <p className="text-lg font-semibold text-gray-900">{patientData.statistics.completed_phonemes} phonemes</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <BookOpen className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">In Progress</p>
-                      <p className="text-lg font-semibold text-gray-900">{patientData.statistics.in_progress_phonemes} phoneme</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-                      <Star className="w-5 h-5 text-yellow-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Average Accuracy</p>
-                      <p className="text-lg font-semibold text-gray-900">{patientData.statistics.average_accuracy}%</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
+            <div className="flex flex-wrap gap-3">
               <button 
-                onClick={() => setShowGraph(true)}
-                className="w-full mt-6 px-4 py-3 bg-gray-50 text-gray-700 rounded-lg font-medium hover:bg-gray-100 transition flex items-center justify-center"
+                onClick={handleGenerateReport}
+                disabled={isGenerating}
+                className={`px-5 py-2.5 bg-white text-custom-blue rounded-lg font-medium shadow hover:bg-gray-50 transition flex items-center space-x-2 ${
+                  isGenerating ? 'opacity-75 cursor-not-allowed' : ''
+                }`}
               >
-                View Speech Analytics
-                <ChevronRight className="w-4 h-4 ml-2" />
+                <FileText className={`w-5 h-5 ${isGenerating ? 'animate-pulse' : ''}`} />
+                <span>{isGenerating ? 'Generating...' : 'Generate Report'}</span>
+              </button>
+              <button 
+                className="px-5 py-2.5 bg-white/20 text-white rounded-lg font-medium hover:bg-white/30 transition flex items-center space-x-2"
+                onClick={() => setShowGraph(true)}
+              >
+                <BarChart2 className="w-5 h-5" />
+                <span>View Analytics</span>
               </button>
             </div>
           </div>
+          
+          {/* Summary Stats */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
+            <div className="bg-white/10 rounded-xl p-4">
+              <div className="flex items-center mb-2">
+                <CheckCircle className="w-5 h-5 text-white mr-2" />
+                <h3 className="text-sm text-white/80">Mastered Phonemes</h3>
+              </div>
+              <p className="text-3xl font-bold text-white">{patientData.statistics.completed_phonemes}</p>
+            </div>
+            <div className="bg-white/10 rounded-xl p-4">
+              <div className="flex items-center mb-2">
+                <BookOpen className="w-5 h-5 text-white mr-2" />
+                <h3 className="text-sm text-white/80">In Progress</h3>
+              </div>
+              <p className="text-3xl font-bold text-white">{patientData.statistics.in_progress_phonemes}</p>
+            </div>
+            <div className="bg-white/10 rounded-xl p-4">
+              <div className="flex items-center mb-2">
+                <Star className="w-5 h-5 text-white mr-2" />
+                <h3 className="text-sm text-white/80">Average Accuracy</h3>
+              </div>
+              <p className="text-3xl font-bold text-white">{patientData.statistics.average_accuracy}%</p>
+            </div>
+            <div className="bg-white/10 rounded-xl p-4">
+              <div className="flex items-center mb-2">
+                <CalendarIcon className="w-5 h-5 text-white mr-2" />
+                <h3 className="text-sm text-white/80">Total Sessions</h3>
+              </div>
+              <p className="text-3xl font-bold text-white">{patientData.statistics.total_sessions}</p>
+            </div>
+          </div>
         </div>
+        
+        {/* Tabs Navigation */}
+        <div className="flex border-b border-gray-200 mb-8">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`px-6 py-4 text-sm font-medium ${
+              activeTab === 'overview'
+                ? 'text-custom-blue border-b-2 border-custom-blue'
+                : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Overview
+          </button>
+          <button
+            onClick={() => setActiveTab('phonemes')}
+            className={`px-6 py-4 text-sm font-medium ${
+              activeTab === 'phonemes'
+                ? 'text-custom-blue border-b-2 border-custom-blue'
+                : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Phoneme Progress
+          </button>
+          <button
+            onClick={() => setActiveTab('sessions')}
+            className={`px-6 py-4 text-sm font-medium ${
+              activeTab === 'sessions'
+                ? 'text-custom-blue border-b-2 border-custom-blue'
+                : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Practice Sessions
+          </button>
+        </div>
+        
+        {/* Tab Content */}
+        {activeTab === 'overview' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Main Progress Overview */}
+            <div className="lg:col-span-2 space-y-8">
+              {/* Recent Activity */}
+              <div className="bg-white rounded-2xl shadow-md p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-semibold text-gray-800">Recent Activity</h2>
+                  <button className="text-sm text-custom-blue hover:text-indigo-700 font-medium">
+                    View All
+                  </button>
+                </div>
+                
+                <div className="space-y-4">
+                  {patientData.recentSessions.slice(0, 3).map((session, index) => (
+                    <div key={index} className="flex items-center p-4 bg-gray-50 rounded-xl">
+                      <div className="w-12 h-12 bg-custom-blue rounded-lg flex items-center justify-center text-white">
+                        <CalendarIcon className="w-6 h-6" />
+                      </div>
+                      <div className="ml-4 flex-1">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h3 className="font-medium text-gray-900">Practice Session</h3>
+                            <p className="text-sm text-gray-500 mt-1">{session.date} • {session.duration}</p>
+                          </div>
+                          <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-lg text-sm font-medium">
+                            {session.accuracy}% accuracy
+                          </span>
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {session.phonemesPracticed.map((phoneme, idx) => (
+                            <span key={idx} className="px-2 py-1 bg-white border border-gray-200 rounded text-xs text-gray-600">
+                              {phoneme}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Progress Overview */}
+              <div className="bg-white rounded-2xl shadow-md p-6">
+                <h2 className="text-xl font-semibold text-gray-800 mb-6">Progress Overview</h2>
+                
+                <div className="space-y-4">
+                  <ProgressCard 
+                    title="Phoneme Mastery" 
+                    value={patientData.statistics.completed_phonemes} 
+                    total={patientData.phonemeProgress.length}
+                    color="bg-green-100 text-green-600"
+                    icon={<CheckCircle className="w-5 h-5" />}
+                  />
+                  
+                  <ProgressCard 
+                    title="Overall Accuracy" 
+                    value={patientData.statistics.average_accuracy} 
+                    total={100}
+                    color="bg-blue-100 text-blue-600"
+                    icon={<Activity className="w-5 h-5" />}
+                  />
+                  
+                  <ProgressCard 
+                    title="Session Completion" 
+                    value={patientData.statistics.total_sessions} 
+                    total={patientData.statistics.total_sessions + 5} // Adding 5 as target for example
+                    color="bg-purple-100 text-purple-600"
+                    icon={<TrendingUp className="w-5 h-5" />}
+                  />
+                </div>
+                
+                <div className="mt-6">
+                  <h3 className="font-medium text-gray-700 mb-4">Next Recommended Phonemes</h3>
+                  <div className="space-y-3">
+                    {patientData.phonemeProgress
+                      .filter(p => p.status === 'in-progress')
+                      .slice(0, 2)
+                      .map((phoneme, index) => (
+                        <div 
+                          key={index}
+                          onClick={() => handlePhonemeClick(phoneme.id)}
+                          className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 cursor-pointer transition-colors"
+                        >
+                          <div className="flex items-center">
+                            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                              <span className="text-lg font-bold text-blue-700">{phoneme.phoneme}</span>
+                            </div>
+                            <div className="ml-3">
+                              <h4 className="font-medium text-gray-900">Chapter {phoneme.id}</h4>
+                              <div className="mt-1 flex">
+                                {phoneme.exampleWords.slice(0, 2).map((word, idx) => (
+                                  <span key={idx} className="mr-2 text-xs text-gray-500">
+                                    {word}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center text-custom-blue">
+                            <span className="mr-1 text-sm">Practice</span>
+                            <ArrowRight className="w-4 h-4" />
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Patient Info Card */}
+            <div className="lg:col-span-1 space-y-8">
+              <div className="bg-white rounded-2xl shadow-md p-6">
+                <h2 className="text-xl font-semibold text-gray-800 mb-6">Patient Information</h2>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <span className="text-gray-600">Full Name</span>
+                    <span className="font-medium text-gray-900">{patientData.patient.full_name}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <span className="text-gray-600">Patient ID</span>
+                    <span className="font-medium text-gray-900">{patientData.patient.patient_id}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <span className="text-gray-600">Gender</span>
+                    <span className="font-medium text-gray-900">{patientData.patient.gender}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <span className="text-gray-600">First Visit</span>
+                    <span className="font-medium text-gray-900">{patientData.patient.first_clinic_date}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-gray-600">Status</span>
+                    <span className="px-2 py-1 bg-green-100 text-green-800 rounded-lg text-sm font-medium">
+                      Active
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Upcoming Sessions */}
+              <div className="bg-white rounded-2xl shadow-md p-6">
+                <h2 className="text-xl font-semibold text-gray-800 mb-6">Upcoming Sessions</h2>
+                <div className="space-y-4">
+                  <div className="p-4 bg-gray-50 rounded-xl">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center">
+                        <Calendar className="w-5 h-5 text-custom-blue mr-2" />
+                        <span className="font-medium text-gray-900">Speech Therapy</span>
+                      </div>
+                      <span className="text-sm text-gray-500">Tomorrow</span>
+                    </div>
+                    <p className="text-sm text-gray-600">10:00 AM - 11:00 AM</p>
+                    <div className="mt-3 flex justify-between items-center">
+                      <span className="text-sm text-gray-500">With Dr. Smith</span>
+                      <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
+                        Confirmed
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="p-4 bg-gray-50 rounded-xl">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center">
+                        <Calendar className="w-5 h-5 text-custom-blue mr-2" />
+                        <span className="font-medium text-gray-900">Progress Assessment</span>
+                      </div>
+                      <span className="text-sm text-gray-500">In 3 days</span>
+                    </div>
+                    <p className="text-sm text-gray-600">2:30 PM - 3:30 PM</p>
+                    <div className="mt-3 flex justify-between items-center">
+                      <span className="text-sm text-gray-500">With Dr. Johnson</span>
+                      <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs font-medium">
+                        Pending
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Actions */}
+              <div className="bg-white rounded-2xl shadow-md p-6">
+                <h2 className="text-xl font-semibold text-gray-800 mb-6">Actions</h2>
+                <div className="space-y-3">
+                  <button className="w-full py-2.5 px-4 bg-custom-blue text-white rounded-lg hover:bg-indigo-700 transition flex items-center justify-center">
+                    <Bell className="w-4 h-4 mr-2" />
+                    Schedule Appointment
+                  </button>
+                  <button className="w-full py-2.5 px-4 bg-white text-custom-blue border border-custom-blue rounded-lg hover:bg-gray-50 transition flex items-center justify-center">
+                    <FileText className="w-4 h-4 mr-2" />
+                    Edit Patient Information
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Phoneme Progress Tab */}
+        {activeTab === 'phonemes' && (
+          <div className="space-y-8">
+            <div className="bg-white rounded-2xl shadow-md p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold text-gray-800">Phoneme Progress</h2>
+                <div className="flex space-x-2">
+                  <button className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">
+                    All
+                  </button>
+                  <button className="px-3 py-1.5 text-sm font-medium text-custom-blue bg-blue-50 rounded-md hover:bg-blue-100">
+                    In Progress
+                  </button>
+                  <button className="px-3 py-1.5 text-sm font-medium text-green-700 bg-green-50 rounded-md hover:bg-green-100">
+                    Completed
+                  </button>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {patientData.phonemeProgress.map((phoneme, index) => (
+                  <PhonemeCard 
+                    key={index}
+                    phoneme={phoneme}
+                    onClick={() => handlePhonemeClick(phoneme.id)}
+                    isActive={selectedPhoneme === phoneme.id}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Sessions Tab */}
+        {activeTab === 'sessions' && (
+          <div className="space-y-8">
+            <div className="bg-white rounded-2xl shadow-md p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold text-gray-800">Practice Sessions</h2>
+                <div className="flex items-center">
+                  <div className="relative">
+                    <select className="pl-3 pr-10 py-2 text-sm border border-gray-300 rounded-lg appearance-none focus:ring-2 focus:ring-custom-blue focus:border-custom-blue">
+                      <option>All Time</option>
+                      <option>Last 7 Days</option>
+                      <option>Last 30 Days</option>
+                      <option>Last 3 Months</option>
+                    </select>
+                    <ChevronLeft className="w-4 h-4 absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-gray-500" />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {patientData.recentSessions.map((session, index) => (
+                  <SessionCard key={index} session={session} />
+                ))}
+              </div>
+              
+              <div className="mt-6 flex justify-center">
+                <button className="px-4 py-2 text-sm font-medium text-custom-blue hover:text-indigo-700 flex items-center">
+                  <p>Load More Sessions</p>
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Graph Modal */}
+      {/* Speech Analytics Modal */}
       {showGraph && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 max-w-4xl w-full mx-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-white rounded-2xl shadow-xl max-w-5xl w-full mx-4 p-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-gray-900">Speech Analytics</h2>
               <button 
                 onClick={() => setShowGraph(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
-            <div className="h-96 bg-gray-50 rounded-xl flex items-center justify-center">
-              <p className="text-gray-500">Phoneme mastery and speech pattern visualization</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+              <div className="bg-gradient-to-br from-custom-blue to-indigo-600 text-white rounded-xl p-4">
+                <h3 className="font-medium mb-1">Overall Accuracy</h3>
+                <p className="text-3xl font-bold">{patientData.statistics.average_accuracy}%</p>
+                <p className="text-sm text-white/80 mt-1">Across all phonemes</p>
+              </div>
+              <div className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-xl p-4">
+                <h3 className="font-medium mb-1">Mastered Phonemes</h3>
+                <p className="text-3xl font-bold">{patientData.statistics.completed_phonemes}</p>
+                <p className="text-sm text-white/80 mt-1">Out of {patientData.phonemeProgress.length} total</p>
+              </div>
+              <div className="bg-gradient-to-br from-amber-500 to-orange-600 text-white rounded-xl p-4">
+                <h3 className="font-medium mb-1">Practice Sessions</h3>
+                <p className="text-3xl font-bold">{patientData.statistics.total_sessions}</p>
+                <p className="text-sm text-white/80 mt-1">Total completed</p>
+              </div>
+            </div>
+            
+            <div className="h-80 bg-gray-50 rounded-xl mb-6 flex items-center justify-center p-4">
+              <div className="text-gray-500 text-center">
+                <BarChart2 className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                <p className="text-lg">Phoneme Accuracy Visualization</p>
+                <p className="text-sm mt-1">Chart will be displayed here</p>
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-4">
+              <button 
+                onClick={() => setShowGraph(false)}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
+              >
+                Close
+              </button>
+              <button className="px-4 py-2 bg-custom-blue text-white rounded-lg hover:bg-indigo-700 transition flex items-center">
+                <Download className="w-4 h-4 mr-2" />
+                Download Analytics
+              </button>
             </div>
           </div>
         </div>
@@ -595,119 +923,128 @@ const PatientUser = () => {
 
       {/* Progress Report Modal */}
       {showReport && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-white rounded-2xl shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto p-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-gray-900">Progress Report</h2>
               <button 
                 onClick={() => setShowReport(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
             
-            {/* Report Content */}
-            <div className="space-y-6">
-              {/* Patient Info */}
-              <div className="border-b pb-4">
-                <h3 className="text-lg font-semibold mb-2">Patient Information</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-500">Name</p>
-                    <p className="font-medium">{patientData.patient.full_name}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Patient ID</p>
-                    <p className="font-medium">{patientData.patient.patient_id}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Gender</p>
-                    <p className="font-medium">{patientData.patient.gender}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">First Visit</p>
-                    <p className="font-medium">{patientData.patient.first_clinic_date}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Summary Stats */}
-              <div className="border-b pb-4">
-                <h3 className="text-lg font-semibold mb-4">Summary Statistics</h3>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="bg-green-50 p-4 rounded-lg">
-                    <p className="text-sm text-green-600">Mastered Phonemes</p>
-                    <p className="text-2xl font-bold text-green-700">
-                      {patientData.statistics.completed_phonemes}
-                    </p>
-                  </div>
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <p className="text-sm text-blue-600">In Progress</p>
-                    <p className="text-2xl font-bold text-blue-700">
-                      {patientData.statistics.in_progress_phonemes}
-                    </p>
-                  </div>
-                  <div className="bg-yellow-50 p-4 rounded-lg">
-                    <p className="text-sm text-yellow-600">Average Accuracy</p>
-                    <p className="text-2xl font-bold text-yellow-700">
-                      {patientData.statistics.average_accuracy}%
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Phoneme Progress */}
-              <div className="border-b pb-4">
-                <h3 className="text-lg font-semibold mb-4">Phoneme Progress Details</h3>
-                <div className="space-y-3">
-                  {patientData.phonemeProgress.map(phoneme => (
-                    <div key={phoneme.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                      <div>
-                        <span className="font-medium">{phoneme.phoneme}</span>
-                        <span className="ml-3 text-sm text-gray-600">
-                          {phoneme.exampleWords.join(', ')}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          phoneme.status === 'completed' ? 'bg-green-100 text-green-800' :
-                          phoneme.status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {phoneme.status}
-                        </span>
-                        <span className="font-medium">{phoneme.accuracy}%</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Recent Sessions */}
+            {/* Report Header */}
+            <div className="flex justify-between items-center mb-6 pb-6 border-b border-gray-200">
               <div>
-                <h3 className="text-lg font-semibold mb-4">Recent Practice Sessions</h3>
-                <div className="space-y-3">
-                  {patientData.recentSessions.map((session, index) => (
-                    <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                      <div>
-                        <span className="font-medium">{session.date}</span>
-                        <span className="ml-3 text-sm text-gray-600">
-                          {session.duration} - {session.phonemesPracticed.join(', ')}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <span className="text-sm text-gray-600">{session.wordsAttempted} words</span>
-                        <span className="font-medium">{session.accuracy}%</span>
-                      </div>
-                    </div>
-                  ))}
+                <p className="text-gray-500 text-sm">Generated on</p>
+                <p className="font-medium">{new Date().toLocaleDateString()}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-gray-500 text-sm">Patient ID</p>
+                <p className="font-medium">{patientData.patient.patient_id}</p>
+              </div>
+            </div>
+            
+            {/* Patient Info */}
+            <div className="bg-gray-50 rounded-xl p-5 mb-6">
+              <h3 className="text-lg font-semibold mb-4 text-gray-800">Patient Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-500">Full Name</p>
+                  <p className="font-medium">{patientData.patient.full_name}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Gender</p>
+                  <p className="font-medium">{patientData.patient.gender}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">First Visit</p>
+                  <p className="font-medium">{patientData.patient.first_clinic_date}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Total Sessions</p>
+                  <p className="font-medium">{patientData.statistics.total_sessions}</p>
                 </div>
               </div>
             </div>
 
+            {/* Summary Stats */}
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold mb-4 text-gray-800">Summary Statistics</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-green-50 rounded-xl p-4 text-center">
+                  <p className="text-sm text-green-600 mb-1">Mastered Phonemes</p>
+                  <p className="text-2xl font-bold text-green-700">
+                    {patientData.statistics.completed_phonemes}
+                  </p>
+                </div>
+                <div className="bg-blue-50 rounded-xl p-4 text-center">
+                  <p className="text-sm text-blue-600 mb-1">In Progress</p>
+                  <p className="text-2xl font-bold text-blue-700">
+                    {patientData.statistics.in_progress_phonemes}
+                  </p>
+                </div>
+                <div className="bg-amber-50 rounded-xl p-4 text-center">
+                  <p className="text-sm text-amber-600 mb-1">Average Accuracy</p>
+                  <p className="text-2xl font-bold text-amber-700">
+                    {patientData.statistics.average_accuracy}%
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Phoneme Progress */}
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold mb-4 text-gray-800">Phoneme Progress Details</h3>
+              <div className="space-y-3">
+                {patientData.phonemeProgress.map((phoneme, index) => (
+                  <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                    <div>
+                      <span className="font-medium text-gray-900">{phoneme.phoneme}</span>
+                      <span className="ml-3 text-sm text-gray-600">
+                        {phoneme.exampleWords.join(', ')}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        phoneme.status === 'completed' ? 'bg-green-100 text-green-800' :
+                        phoneme.status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {phoneme.status.replace('-', ' ')}
+                      </span>
+                      <span className="font-medium text-gray-900">{phoneme.accuracy}%</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Recent Sessions */}
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold mb-4 text-gray-800">Recent Practice Sessions</h3>
+              <div className="space-y-3">
+                {patientData.recentSessions.map((session, index) => (
+                  <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                    <div>
+                      <span className="font-medium text-gray-900">{session.date}</span>
+                      <span className="ml-3 text-sm text-gray-600">
+                        {session.duration} • {session.phonemesPracticed.join(', ')}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span className="text-sm text-gray-600">{session.wordsAttempted} words</span>
+                      <span className="font-medium text-gray-900">{session.accuracy}%</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             {/* Action Buttons */}
-            <div className="mt-8 flex justify-end space-x-4">
+            <div className="flex justify-end space-x-4 mt-8">
               <button
                 onClick={() => setShowReport(false)}
                 className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
@@ -716,10 +1053,10 @@ const PatientUser = () => {
               </button>
               <button
                 onClick={handleDownloadReport}
-                className="px-4 py-2 bg-custom-blue text-white rounded-lg hover:bg-blue-700 transition flex items-center space-x-2"
+                className="px-4 py-2 bg-custom-blue text-white rounded-lg hover:bg-indigo-700 transition flex items-center"
               >
-                <Download className="w-4 h-4" />
-                <span>Download PDF</span>
+                <Download className="w-4 h-4 mr-2" />
+                Download PDF
               </button>
             </div>
           </div>
