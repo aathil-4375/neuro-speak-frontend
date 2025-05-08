@@ -2,30 +2,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import NavBar from '../components/NavBar';
-import { 
-  UserPlus, 
-  Search, 
-  UserMinus, 
-  UserCog, 
-  X, 
-  Eye, 
-  EyeOff,
-  Shield,
-  Clock,
-  Users,
-  Sparkles,
-  Calendar
-} from 'lucide-react';
+import { UserPlus, Search, UserMinus, UserCog, X, Eye, EyeOff, Users, PlusCircle, Clipboard, PieChart } from 'lucide-react';
 import { patientService } from '../services/patients';
 import { useToast } from '../contexts/ToastContext';
-import { useAuth } from '../contexts/AuthContext';
 
 const Modal = ({ isOpen, onClose, title, children }) => {
   if (!isOpen) return null;
-  
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl w-96 p-6 relative border border-gray-100">
+      <div className="bg-white rounded-2xl shadow-xl w-96 p-6 relative border border-gray-200">
         <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors">
           <X className="w-5 h-5" />
         </button>
@@ -36,35 +21,81 @@ const Modal = ({ isOpen, onClose, title, children }) => {
   );
 };
 
-const StatCard = ({ icon, title, value, bgColor }) => {
-  return (
-    <div className={`${bgColor} rounded-xl p-6 flex items-center shadow-md`}>
-      <div className="p-3 bg-white bg-opacity-30 rounded-lg mr-4">
+const StatCard = ({ icon, title, value, color }) => (
+  <div className={`bg-gradient-to-br ${color} rounded-xl shadow-md p-5`}>
+    <div className="flex items-center justify-between">
+      <div className="w-12 h-12 bg-white bg-opacity-30 rounded-lg flex items-center justify-center">
         {icon}
       </div>
-      <div>
+      <div className="text-right">
         <p className="text-white text-opacity-90 text-sm font-medium">{title}</p>
         <p className="text-white text-2xl font-bold">{value}</p>
       </div>
     </div>
-  );
-};
+  </div>
+);
+
+const PatientCard = ({ patient, onClick }) => (
+  <div 
+    onClick={onClick}
+    className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden cursor-pointer group"
+  >
+    <div className="p-5">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-3">
+          <div className="w-10 h-10 bg-custom-blue rounded-full flex items-center justify-center">
+            <span className="text-white font-medium text-lg">{patient.full_name.charAt(0)}</span>
+          </div>
+          <div>
+            <h3 className="font-semibold text-gray-800 group-hover:text-custom-blue transition-colors">
+              {patient.full_name}
+            </h3>
+            <p className="text-sm text-gray-500">ID: {patient.patient_id}</p>
+          </div>
+        </div>
+        <div className={`px-3 py-1 rounded-full text-xs font-medium 
+          ${patient.gender === 'Male' ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800'}`}>
+          {patient.gender}
+        </div>
+      </div>
+    </div>
+    <div className="px-5 py-3 bg-gray-50 border-t border-gray-100">
+      <div className="flex justify-between items-center">
+        <span className="text-xs text-gray-500">First Visit: {new Date(patient.first_clinic_date).toLocaleDateString()}</span>
+        <button className="text-custom-blue text-sm font-medium hover:underline">
+          View Details
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
+const ActionButton = ({ icon, label, onClick, color = "from-custom-blue to-indigo-600" }) => (
+  <button
+    onClick={onClick}
+    className={`w-full flex flex-col items-center justify-center py-8 rounded-xl bg-gradient-to-r ${color} text-white hover:shadow-lg transition duration-300 transform hover:scale-105`}
+  >
+    <div className="bg-white bg-opacity-20 rounded-full p-3 mb-3">
+      {icon}
+    </div>
+    <span className="font-medium">{label}</span>
+  </button>
+);
 
 const Home = () => {
   const [modalOpen, setModalOpen] = useState(null);
   const [patients, setPatients] = useState([]);
-  const [recentPatients, setRecentPatients] = useState([]);
-  const [stats, setStats] = useState({
-    totalPatients: 0,
-    activeTreatments: 0,
-    completedTreatments: 0,
-    upcomingAppointments: 0
-  });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const navigate = useNavigate();
   const { showSuccess, showError } = useToast();
-  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    total: 0,
+    male: 0,
+    female: 0,
+    recent: 0
+  });
   
   const [form, setForm] = useState({
     fullName: '',
@@ -81,7 +112,6 @@ const Home = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [updateData, setUpdateData] = useState(null);
   const [updateForm, setUpdateForm] = useState({});
-  const [loading, setLoading] = useState(true);
 
   const fetchPatients = useCallback(async () => {
     try {
@@ -89,15 +119,24 @@ const Home = () => {
       const response = await patientService.getAllPatients();
       setPatients(response.data);
       
-      // Set recent patients (last 5)
-      setRecentPatients(response.data.slice(0, 5));
+      // Calculate stats
+      const maleCount = response.data.filter(p => p.gender === 'Male').length;
+      const femaleCount = response.data.filter(p => p.gender === 'Female').length;
       
-      // Set mock stats based on patient data
+      // Calculate patients added in the last 30 days
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const recentPatients = response.data.filter(p => {
+        const firstVisit = new Date(p.first_clinic_date);
+        return firstVisit >= thirtyDaysAgo;
+      }).length;
+      
       setStats({
-        totalPatients: response.data.length,
-        activeTreatments: Math.floor(response.data.length * 0.7),
-        completedTreatments: Math.floor(response.data.length * 0.3),
-        upcomingAppointments: Math.floor(response.data.length * 0.5)
+        total: response.data.length,
+        male: maleCount,
+        female: femaleCount,
+        recent: recentPatients
       });
       
       setLoading(false);
@@ -150,6 +189,8 @@ const Home = () => {
         first_clinic_date: new Date().toISOString().split('T')[0] // Add today's date
       };
       
+      console.log('Sending patient data:', patientData);
+      
       const response = await patientService.createPatient(patientData);
       console.log('Add patient response:', response);
       
@@ -190,6 +231,8 @@ const Home = () => {
         patient_id: updateData.patient_id // Include patient_id in case backend needs it
       };
       
+      console.log('Updating patient:', patientData);
+      
       await patientService.updatePatient(updateData.patient_id, patientData);
       await fetchPatients();
       closeModal();
@@ -221,324 +264,244 @@ const Home = () => {
     navigate('/home/patient', { state: { patient } });
   };
 
-  const actionCards = [
-    { label: 'Add Patient', icon: <UserPlus className="w-6 h-6" />, type: 'Add', color: 'from-emerald-500 to-teal-600' },
-    { label: 'Search Patient', icon: <Search className="w-6 h-6" />, type: 'Search', color: 'from-blue-500 to-indigo-600' },
-    { label: 'Update Patient', icon: <UserCog className="w-6 h-6" />, type: 'Update', color: 'from-amber-500 to-orange-600' },
-    { label: 'Remove Patient', icon: <UserMinus className="w-6 h-6" />, type: 'Remove', color: 'from-rose-500 to-red-600' }
-  ];
-
-  if (loading) {
-    return (
-      <>
-        <NavBar />
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <div className="text-lg text-gray-600">Loading dashboard...</div>
-        </div>
-      </>
-    );
-  }
-
   return (
-    <>
+    <div className="min-h-screen bg-gray-50">
       <NavBar />
-      <div className="min-h-screen bg-gray-50">
-        <div className="container mx-auto px-4 py-8 max-w-7xl">
-          {/* Welcome Section */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Welcome back, {user?.first_name || 'Doctor'}</h1>
-            <p className="text-gray-600 mt-1">Here's what's happening with your patients today.</p>
+      
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        {/* Welcome Section */}
+        <div className="bg-gradient-to-r from-custom-blue to-indigo-700 rounded-2xl shadow-lg mb-8">
+          <div className="px-8 py-10 text-white">
+            <h1 className="text-3xl font-bold mb-2">Welcome to NeuroSpeak</h1>
+            <p className="text-white text-opacity-90 max-w-3xl">
+              Your comprehensive platform for speech therapy management. Track patient progress, 
+              manage phoneme practice, and visualize improvement over time.
+            </p>
+            
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
+              <StatCard 
+                icon={<Users className="w-6 h-6 text-custom-blue" />} 
+                title="Total Patients" 
+                value={stats.total} 
+                color="from-blue-600 to-blue-800" 
+              />
+              <StatCard 
+                icon={<PlusCircle className="w-6 h-6 text-green-600" />} 
+                title="Recent Patients" 
+                value={stats.recent} 
+                color="from-green-500 to-green-700" 
+              />
+              <StatCard 
+                icon={<Clipboard className="w-6 h-6 text-amber-600" />} 
+                title="Male Patients" 
+                value={stats.male} 
+                color="from-amber-500 to-amber-700" 
+              />
+              <StatCard 
+                icon={<PieChart className="w-6 h-6 text-purple-600" />} 
+                title="Female Patients" 
+                value={stats.female} 
+                color="from-purple-500 to-purple-700" 
+              />
+            </div>
           </div>
-
-          {/* Stats Section */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <StatCard 
-              icon={<Users className="w-6 h-6 text-blue-500" />} 
-              title="Total Patients" 
-              value={stats.totalPatients} 
-              bgColor="bg-gradient-to-r from-blue-500 to-indigo-600" 
+        </div>
+        
+        {/* Actions Section */}
+        <div className="mb-10">
+          <h2 className="text-2xl font-bold text-gray-800 mb-5">Patient Management</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <ActionButton 
+              icon={<UserPlus className="w-6 h-6" />} 
+              label="Add Patient" 
+              onClick={() => openModal('Add')} 
+              color="from-custom-blue to-blue-700" 
             />
-            <StatCard 
-              icon={<Sparkles className="w-6 h-6 text-amber-500" />} 
-              title="Active Treatments" 
-              value={stats.activeTreatments} 
-              bgColor="bg-gradient-to-r from-amber-500 to-orange-600" 
+            <ActionButton 
+              icon={<Search className="w-6 h-6" />} 
+              label="Search Patient" 
+              onClick={() => openModal('Search')} 
+              color="from-green-500 to-green-700" 
             />
-            <StatCard 
-              icon={<Shield className="w-6 h-6 text-emerald-500" />} 
-              title="Completed Treatments" 
-              value={stats.completedTreatments} 
-              bgColor="bg-gradient-to-r from-emerald-500 to-teal-600" 
+            <ActionButton 
+              icon={<UserCog className="w-6 h-6" />} 
+              label="Update Patient" 
+              onClick={() => openModal('Update')} 
+              color="from-amber-500 to-amber-700" 
             />
-            <StatCard 
-              icon={<Calendar className="w-6 h-6 text-purple-500" />} 
-              title="Upcoming Appointments" 
-              value={stats.upcomingAppointments} 
-              bgColor="bg-gradient-to-r from-purple-500 to-violet-600" 
+            <ActionButton 
+              icon={<UserMinus className="w-6 h-6" />} 
+              label="Remove Patient" 
+              onClick={() => openModal('Remove')} 
+              color="from-red-500 to-red-700" 
             />
           </div>
-
-          {/* Actions Section */}
+        </div>
+        
+        {/* Patient List Section */}
+        {patients.length > 0 && (
           <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
-            <h2 className="text-xl font-semibold text-gray-800 mb-6">Quick Actions</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-              {actionCards.map((card) => (
-                <button
-                  key={card.type}
-                  className={`p-6 rounded-xl bg-gradient-to-r ${card.color} text-white shadow-md hover:shadow-lg transition-all transform hover:-translate-y-1`}
-                  onClick={() => openModal(card.type)}
-                >
-                  <div className="flex flex-col items-center text-center">
-                    <div className="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-3">
-                      {card.icon}
-                    </div>
-                    <span className="font-medium text-white">{card.label}</span>
-                  </div>
-                </button>
-              ))}
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-800">Your Patients</h2>
+              <div className="text-sm text-gray-500">{patients.length} patients registered</div>
             </div>
-          </div>
-
-          {/* Recent Patients Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2">
-              <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-semibold text-gray-800">Recent Patients</h2>
-                  <button 
-                    onClick={() => navigate('/patients')} 
-                    className="text-sm text-custom-blue hover:text-indigo-700 font-medium"
-                  >
-                    View All
-                  </button>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="text-left border-b border-gray-200">
-                        <th className="pb-3 text-sm font-medium text-gray-500">Patient Name</th>
-                        <th className="pb-3 text-sm font-medium text-gray-500">ID</th>
-                        <th className="pb-3 text-sm font-medium text-gray-500">Gender</th>
-                        <th className="pb-3 text-sm font-medium text-gray-500">First Visit</th>
-                        <th className="pb-3 text-sm font-medium text-gray-500">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {recentPatients.map((patient, index) => (
-                        <tr key={index} className="hover:bg-gray-50 transition-colors">
-                          <td className="py-3 pr-4">
-                            <div className="flex items-center">
-                              <div className="w-8 h-8 bg-gradient-to-r from-custom-blue to-indigo-600 rounded-full flex items-center justify-center text-white font-medium">
-                                {patient.full_name.charAt(0)}
-                              </div>
-                              <span className="ml-2 font-medium text-gray-900">{patient.full_name}</span>
-                            </div>
-                          </td>
-                          <td className="py-3 pr-4 text-gray-700">{patient.patient_id}</td>
-                          <td className="py-3 pr-4 text-gray-700">{patient.gender}</td>
-                          <td className="py-3 pr-4 text-gray-700">{patient.first_clinic_date || 'N/A'}</td>
-                          <td className="py-3">
-                            <button 
-                              onClick={() => handlePatientSelect(patient)}
-                              className="px-3 py-1 bg-custom-blue text-white text-sm rounded-md hover:bg-indigo-700 transition-colors"
-                            >
-                              View
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+            
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-pulse text-custom-blue">Loading patients...</div>
               </div>
-            </div>
-
-            {/* Today's Schedule Section */}
-            <div className="lg:col-span-1">
-              <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
-                <h2 className="text-xl font-semibold text-gray-800 mb-6">Today's Schedule</h2>
-                <div className="space-y-4">
-                  {patients.slice(0, 3).map((patient, index) => (
-                    <div key={index} className="p-4 rounded-xl bg-gray-50 border border-gray-100">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="font-medium text-gray-900">{patient.full_name}</h3>
-                          <p className="text-sm text-gray-500 mt-1">Therapy Session</p>
-                        </div>
-                        <div className="flex items-center text-sm text-gray-600">
-                          <Clock className="w-4 h-4 mr-1" />
-                          {index === 0 ? '9:00 AM' : index === 1 ? '11:30 AM' : '2:15 PM'}
-                        </div>
-                      </div>
-                      <div className="mt-3 flex justify-between">
-                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-md text-xs font-medium">
-                          {index === 0 ? 'Speech Therapy' : index === 1 ? 'Assessment' : 'Follow-up'}
-                        </span>
-                        <button 
-                          onClick={() => handlePatientSelect(patient)}
-                          className="text-sm text-custom-blue hover:text-indigo-700 font-medium"
-                        >
-                          View Details
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                  {patients.length === 0 && (
-                    <div className="text-center py-6 text-gray-500">
-                      <p>No appointments scheduled for today</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* All Patients Section */}
-          {patients.length > 0 && (
-            <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-semibold text-gray-800">All Patients</h2>
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Search patients..."
-                    className="pl-9 pr-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-custom-blue focus:border-custom-blue"
-                  />
-                  <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {patients.map((patient, index) => (
-                  <div
-                    key={index}
-                    onClick={() => handlePatientSelect(patient)}
-                    className="bg-gray-50 hover:bg-gray-100 p-4 rounded-xl border border-gray-200 transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-center mb-3">
-                      <div className="w-10 h-10 bg-gradient-to-r from-custom-blue to-indigo-600 rounded-full flex items-center justify-center text-white font-medium">
-                        {patient.full_name.charAt(0)}
-                      </div>
-                      <div className="ml-3">
-                        <h3 className="font-medium text-gray-900">{patient.full_name}</h3>
-                        <p className="text-sm text-gray-500">ID: {patient.patient_id}</p>
-                      </div>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Gender: {patient.gender}</span>
-                      <span className="px-2 py-1 bg-green-100 text-green-800 rounded-md text-xs font-medium">
-                        Active
-                      </span>
-                    </div>
-                  </div>
+                  <PatientCard 
+                    key={index} 
+                    patient={patient} 
+                    onClick={() => handlePatientSelect(patient)} 
+                  />
                 ))}
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Add Modal */}
-      <Modal isOpen={modalOpen === 'Add'} onClose={closeModal} title="Add New Patient">
-        <input
-          placeholder="Full Name"
-          className="w-full border rounded-lg p-3 bg-gray-50 focus:ring-2 focus:ring-custom-blue focus:border-custom-blue"
-          value={form.fullName}
-          onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-        />
-        <input
-          placeholder="Patient ID"
-          className="w-full border rounded-lg p-3 bg-gray-50 focus:ring-2 focus:ring-custom-blue focus:border-custom-blue"
-          value={form.patientId}
-          onChange={(e) => setForm({ ...form, patientId: e.target.value })}
-        />
-        <select
-          className="w-full border rounded-lg p-3 bg-gray-50 focus:ring-2 focus:ring-custom-blue focus:border-custom-blue"
-          value={form.gender}
-          onChange={(e) => setForm({ ...form, gender: e.target.value })}
-        >
-          <option value="">Select Gender</option>
-          <option value="Male">Male</option>
-          <option value="Female">Female</option>
-        </select>
-        {/* Password fields are optional for patients */}
-        <div className="relative">
-          <input
-            placeholder="Password (Optional)"
-            type={showPassword ? "text" : "password"}
-            className="w-full border rounded-lg p-3 pr-10 bg-gray-50 focus:ring-2 focus:ring-custom-blue focus:border-custom-blue"
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-          />
+      <Modal isOpen={modalOpen === 'Add'} onClose={closeModal} title="Add Patient">
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+            <input
+              className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-custom-blue focus:border-custom-blue transition"
+              value={form.fullName}
+              onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+              placeholder="Enter patient's full name"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Patient ID</label>
+            <input
+              className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-custom-blue focus:border-custom-blue transition"
+              value={form.patientId}
+              onChange={(e) => setForm({ ...form, patientId: e.target.value })}
+              placeholder="Enter unique patient ID"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+            <select
+              className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-custom-blue focus:border-custom-blue transition"
+              value={form.gender}
+              onChange={(e) => setForm({ ...form, gender: e.target.value })}
+            >
+              <option value="">Select Gender</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+            </select>
+          </div>
+          
+          {/* Password fields are optional for patients */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Password (Optional)</label>
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                className="w-full border border-gray-300 rounded-lg p-2.5 pr-10 focus:ring-2 focus:ring-custom-blue focus:border-custom-blue transition"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                placeholder="Create a password"
+              />
+              <button
+                type="button"
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+            <div className="relative">
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                className="w-full border border-gray-300 rounded-lg p-2.5 pr-10 focus:ring-2 focus:ring-custom-blue focus:border-custom-blue transition"
+                value={form.confirmPassword}
+                onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+                placeholder="Confirm password"
+              />
+              <button
+                type="button"
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              >
+                {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
+          </div>
+          
           <button
-            type="button"
-            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
-            onClick={() => setShowPassword(!showPassword)}
+            className="w-full bg-gradient-to-r from-custom-blue to-indigo-600 text-white py-3 rounded-lg font-medium hover:from-indigo-600 hover:to-custom-blue transition shadow-md hover:shadow-lg"
+            onClick={handleAdd}
           >
-            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            Add Patient
           </button>
         </div>
-        <div className="relative">
-          <input
-            placeholder="Confirm Password (Optional)"
-            type={showConfirmPassword ? "text" : "password"}
-            className="w-full border rounded-lg p-3 pr-10 bg-gray-50 focus:ring-2 focus:ring-custom-blue focus:border-custom-blue"
-            value={form.confirmPassword}
-            onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
-          />
-          <button
-            type="button"
-            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
-            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-          >
-            {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-          </button>
-        </div>
-        <button
-          className="w-full bg-gradient-to-r from-custom-blue to-indigo-600 text-white py-3 rounded-lg hover:from-indigo-600 hover:to-custom-blue transition-all font-medium"
-          onClick={handleAdd}
-        >
-          Add Patient
-        </button>
       </Modal>
 
       {/* Search Modal */}
       <Modal isOpen={modalOpen === 'Search'} onClose={closeModal} title="Search Patient">
-        <input
-          placeholder="Enter Patient ID"
-          className="w-full border rounded-lg p-3 bg-gray-50 focus:ring-2 focus:ring-custom-blue focus:border-custom-blue"
-          value={search.patientId}
-          onChange={(e) => setSearch({ ...search, patientId: e.target.value })}
-        />
-        <button
-          className="w-full bg-gradient-to-r from-custom-blue to-indigo-600 text-white py-3 rounded-lg hover:from-indigo-600 hover:to-custom-blue transition-all font-medium"
-          onClick={handleSearch}
-        >
-          Search
-        </button>
-        {searchResults.map((p, index) => (
-          <div 
-            key={index} 
-            className="border p-3 rounded-lg bg-gray-50 cursor-pointer hover:bg-gray-100 transition"
-            onClick={() => handlePatientSelect(p)}
-          >
-            <p><strong>Name:</strong> {p.full_name}</p>
-            <p><strong>Gender:</strong> {p.gender}</p>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Patient ID</label>
+            <input
+              className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-custom-blue focus:border-custom-blue transition"
+              value={search.patientId}
+              onChange={(e) => setSearch({ ...search, patientId: e.target.value })}
+              placeholder="Enter patient ID to search"
+            />
           </div>
-        ))}
+          
+          <button
+            className="w-full bg-gradient-to-r from-custom-blue to-indigo-600 text-white py-3 rounded-lg font-medium hover:from-indigo-600 hover:to-custom-blue transition shadow-md hover:shadow-lg"
+            onClick={handleSearch}
+          >
+            Search Patient
+          </button>
+          
+          {searchResults.map((p, index) => (
+            <div 
+              key={index} 
+              className="border p-3 rounded-lg bg-gray-50 cursor-pointer hover:bg-gray-100 transition"
+              onClick={() => handlePatientSelect(p)}
+            >
+              <p><strong>Name:</strong> {p.full_name}</p>
+              <p><strong>Gender:</strong> {p.gender}</p>
+            </div>
+          ))}
+        </div>
       </Modal>
 
       {/* Update Modal */}
       <Modal isOpen={modalOpen === 'Update'} onClose={closeModal} title="Update Patient">
         {!updateData ? (
-          <>
-            <input
-              placeholder="Enter Patient ID"
-              className="w-full border rounded-lg p-3 bg-gray-50 focus:ring-2 focus:ring-custom-blue focus:border-custom-blue"
-              value={search.patientId}
-              onChange={(e) => setSearch({ ...search, patientId: e.target.value })}
-            />
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Patient ID</label>
+              <input
+                className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-custom-blue focus:border-custom-blue transition"
+                value={search.patientId}
+                onChange={(e) => setSearch({ ...search, patientId: e.target.value })}
+                placeholder="Enter patient ID to update"
+              />
+            </div>
+            
             <button
-              className="w-full bg-gradient-to-r from-custom-blue to-indigo-600 text-white py-3 rounded-lg hover:from-indigo-600 hover:to-custom-blue transition-all font-medium"
+              className="w-full bg-gradient-to-r from-custom-blue to-indigo-600 text-white py-3 rounded-lg font-medium hover:from-indigo-600 hover:to-custom-blue transition shadow-md hover:shadow-lg"
               onClick={async () => {
                 if (!search.patientId) {
                   showError('Please enter Patient ID');
@@ -555,54 +518,68 @@ const Home = () => {
             >
               Find Patient
             </button>
-          </>
+          </div>
         ) : (
-          <>
-            <input
-              placeholder="Full Name"
-              className="w-full border rounded-lg p-3 bg-gray-50 focus:ring-2 focus:ring-custom-blue focus:border-custom-blue"
-              value={updateForm.full_name || ''}
-              onChange={(e) => setUpdateForm({ ...updateForm, full_name: e.target.value })}
-            />
-            <select
-              className="w-full border rounded-lg p-3 bg-gray-50 focus:ring-2 focus:ring-custom-blue focus:border-custom-blue"
-              value={updateForm.gender}
-              onChange={(e) => setUpdateForm({ ...updateForm, gender: e.target.value })}
-            >
-              <option value="">Select Gender</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-            </select>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+              <input
+                className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-custom-blue focus:border-custom-blue transition"
+                value={updateForm.full_name || ''}
+                onChange={(e) => setUpdateForm({ ...updateForm, full_name: e.target.value })}
+                placeholder="Enter patient's full name"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+              <select
+                className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-custom-blue focus:border-custom-blue transition"
+                value={updateForm.gender}
+                onChange={(e) => setUpdateForm({ ...updateForm, gender: e.target.value })}
+              >
+                <option value="">Select Gender</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
+            </div>
+            
             <button
-              className="w-full bg-gradient-to-r from-amber-500 to-orange-600 text-white py-3 rounded-lg hover:from-orange-600 hover:to-amber-500 transition-all font-medium"
+              className="w-full bg-gradient-to-r from-custom-blue to-indigo-600 text-white py-3 rounded-lg font-medium hover:from-indigo-600 hover:to-custom-blue transition shadow-md hover:shadow-lg"
               onClick={handleUpdate}
             >
               Update Patient
             </button>
-          </>
+          </div>
         )}
       </Modal>
 
       {/* Remove Modal */}
       <Modal isOpen={modalOpen === 'Remove'} onClose={closeModal} title="Remove Patient">
-        <input
-          placeholder="Enter Patient ID"
-          className="w-full border rounded-lg p-3 bg-gray-50 focus:ring-2 focus:ring-custom-blue focus:border-custom-blue"
-          value={search.patientId}
-          onChange={(e) => setSearch({ ...search, patientId: e.target.value })}
-        />
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 text-sm">
-          <p className="font-medium">Warning: This action cannot be undone</p>
-          <p className="mt-1">Removing a patient will permanently delete all their records and therapy progress.</p>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Patient ID</label>
+            <input
+              className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-custom-blue focus:border-custom-blue transition"
+              value={search.patientId}
+              onChange={(e) => setSearch({ ...search, patientId: e.target.value })}
+              placeholder="Enter patient ID to remove"
+            />
+          </div>
+          
+          <div className="bg-red-50 text-red-800 p-3 rounded-lg text-sm">
+            <p>Warning: This action cannot be undone. The patient and all associated data will be permanently removed.</p>
+          </div>
+          
+          <button
+            className="w-full bg-gradient-to-r from-red-500 to-red-700 text-white py-3 rounded-lg font-medium hover:from-red-600 hover:to-red-800 transition shadow-md hover:shadow-lg"
+            onClick={handleRemove}
+          >
+            Confirm Removal
+          </button>
         </div>
-        <button
-          className="w-full bg-gradient-to-r from-rose-500 to-red-600 text-white py-3 rounded-lg hover:from-red-600 hover:to-rose-500 transition-all font-medium"
-          onClick={handleRemove}
-        >
-          Confirm Remove
-        </button>
       </Modal>
-    </>
+    </div>
   );
 };
 
