@@ -25,5 +25,15 @@ export const progressService = {
   async createSessionHistory(sessionData) {
     const response = await api.post('/progress/session-history/create/', sessionData);
     return response;
+  },
+
+  async getPatientSummary(patientId) {
+    const response = await api.get(`/progress/patient/${patientId}/summary/`);
+    return response;
+  },
+
+  async getLastSessionData(patientId) {
+    const response = await api.get(`/progress/patient/${patientId}/last-session/`);
+    return response;
   }
 };
