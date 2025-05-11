@@ -280,7 +280,7 @@ const PatientUser = () => {
               <div class="summary-card">
                 <div class="summary-label">Average Accuracy</div>
                 <div class="summary-value" style="color: #d97706;">
-                  ${patientData.statistics.average_accuracy}%
+                  ${parseFloat(patientData.statistics.average_accuracy).toFixed(1)}%
                 </div>
               </div>
             </div>
@@ -301,7 +301,7 @@ const PatientUser = () => {
                     ${phoneme.status.replace('-', ' ')}
                   </span>
                   <span style="margin-left: 10px; font-weight: bold;">
-                    ${phoneme.accuracy}%
+                    ${parseFloat(phoneme.accuracy).toFixed(1)}%
                   </span>
                 </div>
               </div>
@@ -322,7 +322,7 @@ const PatientUser = () => {
                   <span style="color: #666; margin-right: 10px;">
                     ${session.wordsAttempted} words
                   </span>
-                  <span style="font-weight: bold;">${session.accuracy}%</span>
+                  <span style="font-weight: bold;">${parseFloat(session.accuracy).toFixed(1)}%</span>
                 </div>
               </div>
             `).join('')}
@@ -484,7 +484,7 @@ const PatientUser = () => {
                   <Award className="w-4 h-4 text-amber-600" />
                 </div>
               </div>
-              <div className="text-2xl font-bold text-amber-600">{patientData.statistics.average_accuracy}%</div>
+              <div className="text-2xl font-bold text-amber-600">{parseFloat(patientData.statistics.average_accuracy).toFixed(1)}%</div>
             </div>
           </div>
         </div>
@@ -542,7 +542,8 @@ const PatientUser = () => {
                             (patientData.statistics.completed_phonemes / 
                             (patientData.statistics.completed_phonemes + 
                              patientData.statistics.in_progress_phonemes + 
-                             patientData.phonemeProgress.filter(p => p.status === 'not-started').length)) * 100
+                             (patientData.statistics.not_started_phonemes || 
+                              patientData.phonemeProgress.filter(p => p.status === 'not-started').length))) * 100
                           )}%` 
                         }}
                       >
@@ -551,7 +552,8 @@ const PatientUser = () => {
                             (patientData.statistics.completed_phonemes / 
                             (patientData.statistics.completed_phonemes + 
                              patientData.statistics.in_progress_phonemes + 
-                             patientData.phonemeProgress.filter(p => p.status === 'not-started').length)) * 100
+                             (patientData.statistics.not_started_phonemes || 
+                              patientData.phonemeProgress.filter(p => p.status === 'not-started').length))) * 100
                           )}%
                         </span>
                       </div>
@@ -577,7 +579,8 @@ const PatientUser = () => {
                         <div className="flex items-center mt-1">
                           <div className="w-3 h-3 bg-gray-300 rounded-full mr-2"></div>
                           <span className="font-semibold">
-                            {patientData.phonemeProgress.filter(p => p.status === 'not-started').length}
+                            {patientData.statistics.not_started_phonemes || 
+                             patientData.phonemeProgress.filter(p => p.status === 'not-started').length}
                           </span>
                         </div>
                       </div>
@@ -588,9 +591,7 @@ const PatientUser = () => {
                     <h3 className="text-lg font-semibold text-gray-900 mb-3">Recent Performance</h3>
                     {patientData.recentSessions.length > 0 ? (
                       <>
-                        <div className="text-3xl font-bold text-custom-blue">
-                          {patientData.recentSessions[0].accuracy}%
-                        </div>
+                        <div className="text-3xl font-bold text-custom-blue">{parseFloat(patientData.recentSessions[0].accuracy).toFixed(1)}%</div>
                         <div className="text-sm text-gray-600 mt-1">
                           Latest session accuracy
                         </div>
@@ -599,12 +600,12 @@ const PatientUser = () => {
                           <div className="flex justify-between items-center">
                             <span className="text-sm text-gray-600">Average last 3 sessions</span>
                             <span className="font-semibold text-gray-900">
-                              {Math.round(
+                              {parseFloat(
                                 patientData.recentSessions
                                   .slice(0, 3)
                                   .reduce((acc, session) => acc + session.accuracy, 0) / 
                                 Math.min(patientData.recentSessions.length, 3)
-                              )}%
+                              ).toFixed(1)}%
                             </span>
                           </div>
                         </div>
@@ -637,7 +638,7 @@ const PatientUser = () => {
                                 <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                                   {session.date}
                                 </div>
-                                <div className="mt-1 font-semibold text-green-600">{session.accuracy}% accuracy</div>
+                                <div className="mt-1 font-semibold text-green-600">{parseFloat(session.accuracy).toFixed(1)}% accuracy</div>
                               </div>
                             </div>
                           </div>
@@ -670,7 +671,7 @@ const PatientUser = () => {
                                   </div>
                                   <div className="ml-3">
                                     <div className="font-medium text-gray-900">Chapter {phoneme.id}</div>
-                                    <div className="text-xs text-gray-600">{phoneme.accuracy}% accuracy</div>
+                                    <div className="text-xs text-gray-600">{parseFloat(phoneme.accuracy).toFixed(1)}% accuracy</div>
                                   </div>
                                 </div>
                                 <ChevronRight className="w-5 h-5 text-blue-600" />
@@ -702,7 +703,7 @@ const PatientUser = () => {
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">Phoneme Progress</h2>
                 <span className="text-sm font-medium px-3 py-1 bg-blue-100 text-blue-800 rounded-full">
-                  {patientData.phonemeProgress.filter(p => p.status === 'completed').length} of {patientData.phonemeProgress.length} mastered
+                  {patientData.statistics.completed_phonemes} of {patientData.phonemeProgress.length} mastered
                 </span>
               </div>
               
@@ -754,7 +755,7 @@ const PatientUser = () => {
                              'Not Started'}
                           </span>
                         </div>
-                        <p className="text-lg font-bold text-gray-900">{phoneme.accuracy}%</p>
+                        <p className="text-lg font-bold text-gray-900">{parseFloat(phoneme.accuracy).toFixed(1)}%</p>
                         <div className="w-32 mt-2">
                           <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
                             <div 
@@ -766,7 +767,7 @@ const PatientUser = () => {
                               style={{ width: `${phoneme.progress}%` }}
                             ></div>
                           </div>
-                          <p className="text-xs text-gray-500 mt-1 text-right">{phoneme.progress}% complete</p>
+                          <p className="text-xs text-gray-500 mt-1 text-right">{parseFloat(phoneme.progress).toFixed(1)}% complete</p>
                         </div>
                       </div>
                     </div>
@@ -836,7 +837,7 @@ const PatientUser = () => {
                                     style={{ width: `${session.accuracy}%` }}
                                   ></div>
                                 </div>
-                                <span className="text-gray-900 font-semibold">{session.accuracy}%</span>
+                                <span className="text-gray-900 font-semibold">{parseFloat(session.accuracy).toFixed(1)}%</span>
                               </div>
                             </td>
                           </tr>
@@ -879,14 +880,22 @@ const PatientUser = () => {
                     className="absolute inset-0 rounded-full border-8 border-green-500 border-r-transparent border-b-transparent"
                     style={{ 
                       transform: `rotate(${Math.round(
-                        (patientData.statistics.completed_phonemes / patientData.phonemeProgress.length) * 360
+                        (patientData.statistics.completed_phonemes / 
+                         (patientData.statistics.completed_phonemes + 
+                          patientData.statistics.in_progress_phonemes + 
+                          (patientData.statistics.not_started_phonemes || 
+                           patientData.phonemeProgress.filter(p => p.status === 'not-started').length))) * 360
                       )}deg)` 
                     }}
                   ></div>
                   <div className="text-center">
                     <div className="text-3xl font-bold text-gray-900">
                       {Math.round(
-                        (patientData.statistics.completed_phonemes / patientData.phonemeProgress.length) * 100
+                        (patientData.statistics.completed_phonemes / 
+                         (patientData.statistics.completed_phonemes + 
+                          patientData.statistics.in_progress_phonemes + 
+                          (patientData.statistics.not_started_phonemes || 
+                           patientData.phonemeProgress.filter(p => p.status === 'not-started').length))) * 100
                       )}%
                     </div>
                     <div className="text-sm text-gray-600">Mastered</div>
@@ -905,7 +914,8 @@ const PatientUser = () => {
                   <div className="text-center p-2 bg-white rounded-lg shadow-sm">
                     <div className="text-xs text-gray-500">Not Started</div>
                     <div className="text-lg font-bold text-gray-600">
-                      {patientData.phonemeProgress.filter(p => p.status === 'not-started').length}
+                      {patientData.statistics.not_started_phonemes || 
+                       patientData.phonemeProgress.filter(p => p.status === 'not-started').length}
                     </div>
                   </div>
                 </div>
@@ -949,7 +959,7 @@ const PatientUser = () => {
                             </div>
                           </div>
                         </div>
-                        <div className="text-xl font-bold text-gray-900">{phoneme.accuracy}%</div>
+                        <div className="text-xl font-bold text-gray-900">{parseFloat(phoneme.accuracy).toFixed(1)}%</div>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div 
@@ -1025,7 +1035,13 @@ const PatientUser = () => {
                       {patientData.statistics.completed_phonemes}
                     </p>
                     <p className="text-xs text-gray-500 mt-2">
-                      {Math.round((patientData.statistics.completed_phonemes / patientData.phonemeProgress.length) * 100)}% of total phonemes
+                      {Math.round(
+                        (patientData.statistics.completed_phonemes / 
+                         (patientData.statistics.completed_phonemes + 
+                          patientData.statistics.in_progress_phonemes + 
+                          (patientData.statistics.not_started_phonemes || 
+                           patientData.phonemeProgress.filter(p => p.status === 'not-started').length))) * 100
+                      )}% of total phonemes
                     </p>
                   </div>
                   <div className="bg-white p-6 rounded-xl shadow-sm border border-blue-100">
@@ -1050,7 +1066,7 @@ const PatientUser = () => {
                       </div>
                     </div>
                     <p className="text-3xl font-bold text-amber-700">
-                      {patientData.statistics.average_accuracy}%
+                      {parseFloat(patientData.statistics.average_accuracy).toFixed(1)}%
                     </p>
                     <p className="text-xs text-gray-500 mt-2">
                       Based on {patientData.statistics.total_sessions} total sessions
@@ -1090,7 +1106,7 @@ const PatientUser = () => {
                            phoneme.status === 'in-progress' ? 'In Progress' : 
                            'Not Started'}
                         </span>
-                        <span className="font-semibold text-gray-900">{phoneme.accuracy}%</span>
+                        <span className="font-semibold">{parseFloat(phoneme.accuracy).toFixed(1)}%</span>
                       </div>
                     </div>
                   ))}
@@ -1118,7 +1134,7 @@ const PatientUser = () => {
                         </div>
                         <div className="text-right">
                           <div className="text-sm text-gray-600">{session.wordsAttempted} words</div>
-                          <div className="font-semibold text-gray-900">{session.accuracy}% accuracy</div>
+                          <div className="font-semibold text-gray-900">{parseFloat(session.accuracy).toFixed(1)}% accuracy</div>
                         </div>
                       </div>
                     ))}
