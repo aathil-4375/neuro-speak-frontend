@@ -264,6 +264,24 @@ const Home = () => {
     navigate('/home/patient', { state: { patient } });
   };
 
+  // Render the loading state
+  const renderLoading = () => (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+      <NavBar />
+      <div className="container mx-auto px-4 py-8 flex justify-center items-center h-[calc(100vh-64px)]">
+        <div className="flex flex-col items-center">
+          <div className="w-16 h-16 border-4 border-custom-blue border-t-transparent rounded-full animate-spin mb-4"></div>
+          <div className="text-xl text-gray-700 font-medium">Loading patient data...</div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // If loading, show the loading screen
+  if (loading) {
+    return renderLoading();
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <NavBar />
@@ -348,21 +366,15 @@ const Home = () => {
               <div className="text-sm text-gray-500">{patients.length} patients registered</div>
             </div>
             
-            {loading ? (
-              <div className="flex justify-center py-8">
-                <div className="animate-pulse text-custom-blue">Loading patients...</div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {patients.map((patient, index) => (
-                  <PatientCard 
-                    key={index} 
-                    patient={patient} 
-                    onClick={() => handlePatientSelect(patient)} 
-                  />
-                ))}
-              </div>
-            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {patients.map((patient, index) => (
+                <PatientCard 
+                  key={index} 
+                  patient={patient} 
+                  onClick={() => handlePatientSelect(patient)} 
+                />
+              ))}
+            </div>
           </div>
         )}
       </div>
