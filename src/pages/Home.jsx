@@ -171,12 +171,12 @@ const Home = () => {
   };
 
   const handleAdd = async () => {
-    if (!form.fullName || !form.patientId || !form.gender) {
-      showError('Please fill in all required fields');
+    if (!form.fullName || !form.patientId || !form.gender || !form.password) {
+      showError('Please fill in all required fields including password');
       return;
     }
 
-    if (form.password && form.password !== form.confirmPassword) {
+    if (form.password !== form.confirmPassword) {
       showError('Passwords do not match!');
       return;
     }
@@ -186,6 +186,7 @@ const Home = () => {
         full_name: form.fullName,
         patient_id: form.patientId,
         gender: form.gender,
+        password: form.password, // Include password for mobile authentication
         first_clinic_date: new Date().toISOString().split('T')[0] // Add today's date
       };
       

@@ -52,26 +52,44 @@ const SpeechAnalyticsModal = ({ patientData, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [graphData, setGraphData] = useState(null);
+  const [autoRefresh, setAutoRefresh] = useState(true);
   
   useEffect(() => {
     if (patientData?.patient?.patient_id) {
       fetchGraphData(patientData.patient.patient_id);
     }
   }, [patientData]);
+
+  // Auto-refresh data every 10 seconds when modal is open
+  useEffect(() => {
+    if (!autoRefresh || !patientData?.patient?.patient_id) return;
+    
+    const intervalId = setInterval(() => {
+      fetchGraphData(patientData.patient.patient_id, true); // Silent refresh
+    }, 10000); // 10 seconds
+    
+    return () => clearInterval(intervalId);
+  }, [autoRefresh, patientData]);
   
-  const fetchGraphData = async (patientId) => {
-    setLoading(true);
-    setError(null);
+  const fetchGraphData = async (patientId, silent = false) => {
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     
     try {
+      console.log(`Fetching analytics data for patient ${patientId}...`);
       // Use the backend API endpoint for graph data
       const data = await apiRequest(`/progress/patient/${patientId}/summary/`);
+      console.log('Analytics data received:', data);
       setGraphData(data);
-      setLoading(false);
+      if (!silent) setLoading(false);
     } catch (err) {
       console.error('Error fetching graph data:', err);
-      setError('Failed to load analytics data');
-      setLoading(false);
+      if (!silent) {
+        setError('Failed to load analytics data');
+        setLoading(false);
+      }
     }
   };
 
@@ -217,7 +235,26 @@ const SpeechAnalyticsModal = ({ patientData, onClose }) => {
     <div className="fixed inset-0 bg-black bg-opacity-25 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-md max-w-4xl w-full mx-4 relative max-h-[95vh] overflow-y-auto">
         <div className="flex justify-between items-center p-4 border-b sticky top-0 bg-white z-10">
-          <h2 className="text-xl font-bold text-gray-900">Speech Analytics</h2>
+          <div className="flex items-center gap-4">
+            <h2 className="text-xl font-bold text-gray-900">Speech Analytics</h2>
+            <button
+              onClick={() => fetchGraphData(patientData?.patient?.patient_id)}
+              disabled={loading}
+              className="flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-600 rounded-md hover:bg-blue-200 disabled:opacity-50 text-sm"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={autoRefresh}
+                onChange={(e) => setAutoRefresh(e.target.checked)}
+                className="rounded"
+              />
+              <span className="text-sm text-gray-600">Auto-refresh</span>
+            </label>
+          </div>
           <button 
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700 focus:outline-none"
